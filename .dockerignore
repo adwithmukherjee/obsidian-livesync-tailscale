@@ -1,0 +1,5 @@
+.git
+.env
+backups
+*.tar.gz
+.DS_Store

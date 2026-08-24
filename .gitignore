@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+backups/
+*.tar.gz
+*.key
+*.pem
+.DS_Store
