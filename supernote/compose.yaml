@@ -102,3 +102,18 @@ services:
       options:
         max-size: 10m
         max-file: "3"
+
+  funnel-proxy:
+    image: nginx:1.29.1-alpine
+    restart: unless-stopped
+    depends_on:
+      - supernote-service
+    ports:
+      - "127.0.0.1:${SUPERNOTE_FUNNEL_PROXY_PORT:-19073}:8080"
+    volumes:
+      - ./funnel-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 12

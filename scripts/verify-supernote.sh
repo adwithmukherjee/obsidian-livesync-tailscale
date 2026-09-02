@@ -17,6 +17,7 @@ docker compose ps --status running --services | grep -qx redis
 docker compose ps --status running --services | grep -qx notelib
 docker compose ps --status running --services | grep -qx mailpit
 docker compose ps --status running --services | grep -qx supernote-service
+docker compose ps --status running --services | grep -qx funnel-proxy
 
 docker compose exec -T supernote-service sh -c \
   'keytool -list -keystore "$JAVA_HOME/jre/lib/security/cacerts" -storepass changeit -alias local-mailpit' \
@@ -34,4 +35,10 @@ case "${status}" in
   *) echo "bad supernote http status: ${status}" >&2; exit 1 ;;
 esac
 
-echo "ok: containers, database, local mail, local http"
+proxy_status="$(curl -sS -o /dev/null -w '%{http_code}' \
+  -H 'Host: private-cloud.example:8443' \
+  -H 'X-Forwarded-Host: private-cloud.example:8443' \
+  "http://127.0.0.1:${SUPERNOTE_FUNNEL_PROXY_PORT:-19073}/api/file/query/server")"
+[ "${proxy_status}" = "200" ] || { echo "bad funnel proxy status: ${proxy_status}" >&2; exit 1; }
+
+echo "ok: containers, database, local mail, local http, funnel proxy"

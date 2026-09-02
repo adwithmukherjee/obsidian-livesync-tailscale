@@ -94,6 +94,8 @@ finish email setup and create the admin account before making it public. then:
 
 the public address is the tailscale dns name with port `8443`. no domain or
 router port forwarding is needed. the mac and docker desktop must be awake.
+the local proxy on `19073` removes a duplicate port from funnel's forwarded
+hostname before requests reach supernote.
 
 the copy script moves handwritten notes out of private cloud storage. it only reads
 `Note/Classes` and `Note/Lab`, only copies `.note` files, and never deletes

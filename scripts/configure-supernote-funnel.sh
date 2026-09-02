@@ -22,5 +22,5 @@ fi
 
 "${tailscale_cli}" status >/dev/null
 "${tailscale_cli}" funnel --bg --yes --https=8443 \
-  "http://127.0.0.1:${SUPERNOTE_HTTP_PORT:-19072}"
+  "http://127.0.0.1:${SUPERNOTE_FUNNEL_PROXY_PORT:-19073}"
 "${tailscale_cli}" funnel status
