@@ -117,3 +117,26 @@ services:
       interval: 10s
       timeout: 3s
       retries: 12
+
+  obsidian-copy:
+    image: bash:5.2.37-alpine3.22
+    profiles: ["copy"]
+    restart: unless-stopped
+    depends_on:
+      - supernote-service
+    environment:
+      SUPERNOTE_NOTE_DIR: /supernote-notes
+      OBSIDIAN_VAULT_DIR: /obsidian-vault
+      SUPERNOTE_COPY_INTERVAL: ${SUPERNOTE_COPY_INTERVAL:-300}
+    volumes:
+      - ${SUPERNOTE_NOTE_DIR:?set SUPERNOTE_NOTE_DIR in supernote/.env}:/supernote-notes:ro
+      - ${OBSIDIAN_VAULT_DIR:?set OBSIDIAN_VAULT_DIR in supernote/.env}:/obsidian-vault
+      - ../scripts/sync-supernote.sh:/app/sync-supernote.sh:ro
+    command:
+      - /usr/local/bin/bash
+      - -c
+      - |
+        while true; do
+          /usr/local/bin/bash /app/sync-supernote.sh
+          sleep "$${SUPERNOTE_COPY_INTERVAL}"
+        done

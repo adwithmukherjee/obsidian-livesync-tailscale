@@ -97,25 +97,22 @@ router port forwarding is needed. the mac and docker desktop must be awake.
 the local proxy on `19073` removes a duplicate port from funnel's forwarded
 hostname before requests reach supernote.
 
-the copy script moves handwritten notes out of private cloud storage. it only reads
-`Note/Classes` and `Note/Lab`, only copies `.note` files, and never deletes
+the docker copy job moves handwritten notes out of private cloud storage. it only
+reads `Note/Classes` and `Note/Lab`, only copies `.note` files, and never deletes
 anything from the vault.
 
-set these in `.env`:
+set these in `supernote/.env`:
 
 ```sh
-SUPERNOTE_NOTE_DIR=/path/to/supernote_data/account/Supernote/Note
+SUPERNOTE_NOTE_DIR=./supernote_data/account/Supernote/Note
 OBSIDIAN_VAULT_DIR=/Users/me/Documents/Obsidian/Notes
 SUPERNOTE_COPY_INTERVAL=300
 ```
 
-test it, run it, then install the background job:
+start it:
 
 ```sh
-./scripts/sync-supernote.sh --check
-./scripts/sync-supernote.sh --dry-run
-./scripts/sync-supernote.sh
-./scripts/install-supernote-copy-launch-agent.sh
+docker compose -f supernote/compose.yaml up -d obsidian-copy
 ```
 
 the supernote copy wins when the same `.note` file differs. writes are atomic.
