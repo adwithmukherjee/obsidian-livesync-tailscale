@@ -140,3 +140,28 @@ services:
           /usr/local/bin/bash /app/sync-supernote.sh
           sleep "$${SUPERNOTE_COPY_INTERVAL}"
         done
+
+  supernote-upload:
+    build:
+      context: .
+      dockerfile: Dockerfile.bridge
+    image: local/supernote-bridge
+    profiles: ["copy"]
+    restart: unless-stopped
+    depends_on:
+      - supernote-service
+    env_file:
+      - path: .uploadenv
+        required: false
+    environment:
+      SUPERNOTE_API_BASE: http://supernote-service:8080/api
+      OBSIDIAN_VAULT_DIR: /obsidian-vault
+    volumes:
+      - ${OBSIDIAN_VAULT_DIR:?set OBSIDIAN_VAULT_DIR in supernote/.env}:/obsidian-vault:ro
+      - ../scripts/sync-obsidian-to-supernote.py:/app/sync-obsidian-to-supernote.py:ro
+      - ./markdown.css:/app/markdown.css:ro
+    command:
+      - python
+      - /app/sync-obsidian-to-supernote.py
+      - --loop
+      - ${SUPERNOTE_COPY_INTERVAL:-300}

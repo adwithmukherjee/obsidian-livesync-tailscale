@@ -1,0 +1,5 @@
+FROM python:3.13.13-slim-bookworm
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pandoc weasyprint fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*

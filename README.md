@@ -119,6 +119,14 @@ the supernote copy wins when the same `.note` file differs. writes are atomic.
 the background job runs every five minutes by default. livesync handles the
 copied files after that.
 
+PDFs in vault `Classes` and `Lab` can go the other way. Markdown files are
+rendered to PDF first. existing remote filenames are left alone.
+
+```sh
+./scripts/configure-supernote-upload.sh your@email.com
+docker compose -f supernote/compose.yaml --profile copy up -d --build supernote-upload
+```
+
 ## useful commands
 
 ```sh
