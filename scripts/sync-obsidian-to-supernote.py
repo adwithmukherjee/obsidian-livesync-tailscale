@@ -283,7 +283,7 @@ def sync_once():
                     entry["source"] = infer_source(vault, path)
                 continue
             entry["missing"] = int(entry.get("missing", 0)) + 1
-            if entry["missing"] < 2:
+            if entry["missing"] < 1:
                 continue
             source = entry.get("source") or infer_source(vault, path)
             if source and trash_local(vault, source):

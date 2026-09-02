@@ -128,7 +128,7 @@ docker compose -f supernote/compose.yaml --profile copy up -d --build supernote-
 ```
 
 the first upload run records a deletion baseline. after that, a file missing
-from private cloud for two checks is moved from the vault into
+from private cloud for one check is moved from the vault into
 `.trash/supernote`. this only applies inside `Classes` and `Lab`. folders and
 `.mark` sidecars are never deleted directly.
 
