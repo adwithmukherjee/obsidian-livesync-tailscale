@@ -260,6 +260,40 @@ def trash_local(vault, relative):
     return True
 
 
+def moved_source(source, old_remote, new_remote):
+    old = PurePosixPath(old_remote)
+    new = PurePosixPath(new_remote)
+    local = PurePosixPath(source)
+    if local.suffix.lower() != old.suffix.lower():
+        new = new.with_suffix(local.suffix)
+    return str(new)
+
+
+def move_local(vault, old_relative, new_relative):
+    source = safe_local_path(vault, old_relative)
+    target = safe_local_path(vault, new_relative)
+    if source == target:
+        return source.exists()
+    if not source.exists():
+        return target.exists()
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists():
+        if os.path.samefile(source, target):
+            temp = source.with_name(f".{source.name}.supernote-{uuid.uuid4().hex}")
+            os.replace(source, temp)
+            os.replace(temp, target)
+        elif source.suffix.lower() == ".note":
+            trash_local(vault, old_relative)
+        else:
+            trash_local(vault, new_relative)
+            os.replace(source, target)
+    else:
+        os.replace(source, target)
+    print(f"rename: {old_relative} -> {new_relative}", flush=True)
+    return True
+
+
 def sync_once():
     vault = Path(os.environ.get("OBSIDIAN_VAULT_DIR", "/obsidian-vault"))
     state_path = Path(os.environ.get("SUPERNOTE_STATE_PATH", "/state/remote-files.json"))
@@ -272,10 +306,32 @@ def sync_once():
     uploaded = 0
     existing = 0
     deleted = 0
+    renamed = 0
+
+    remote_by_id = {}
+    for path, item in remote.items():
+        file_id = str(item["id"])
+        if file_id in remote_by_id:
+            raise RuntimeError(f"duplicate remote id: {file_id}")
+        remote_by_id[file_id] = path
 
     if saved:
         for path in list(entries):
             entry = entries[path]
+            old_id = str(entry.get("id", ""))
+            new_path = remote_by_id.get(old_id)
+            if new_path and new_path != path:
+                source = entry.get("source") or infer_source(vault, path)
+                new_source = moved_source(source, path, new_path) if source else None
+                if source and move_local(vault, source, new_source):
+                    renamed += 1
+                entries.pop(path)
+                entries[new_path] = {
+                    **remote[new_path],
+                    "missing": 0,
+                    "source": new_source,
+                }
+                continue
             if path in remote:
                 entry.update(remote[path])
                 entry["missing"] = 0
@@ -346,7 +402,11 @@ def sync_once():
         if path not in remote and entry.get("missing", 0):
             next_entries[path] = entry
     save_state(state_path, next_entries)
-    print(f"ok: {uploaded} uploaded, {existing} existing, {deleted} deleted", flush=True)
+    print(
+        f"ok: {uploaded} uploaded, {existing} existing, "
+        f"{renamed} renamed, {deleted} deleted",
+        flush=True,
+    )
 
 
 def main():

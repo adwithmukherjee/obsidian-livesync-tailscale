@@ -132,6 +132,10 @@ from private cloud for one check is moved from the vault into
 `.trash/supernote`. this only applies inside `Classes` and `Lab`. folders and
 `.mark` sidecars are never deleted directly.
 
+renaming or moving a tracked file on the Manta moves the matching vault file.
+for rendered markdown, the `.md` source follows the renamed PDF. the Manta path
+wins.
+
 ## useful commands
 
 ```sh
