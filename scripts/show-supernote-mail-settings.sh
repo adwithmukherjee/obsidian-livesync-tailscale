@@ -10,7 +10,7 @@ set -a
 . ./.dbenv
 set +a
 
-password="${MP_SMTP_AUTH#supernote:}"
+password="${MP_SMTP_AUTH#supernote@local:}"
 
 echo "smtp server: mailpit"
 echo "port: 1025"

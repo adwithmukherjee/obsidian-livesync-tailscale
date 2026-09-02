@@ -22,13 +22,13 @@ if [ ! -f .dbenv ]; then
     echo "MYSQL_USER=enote"
     echo "MYSQL_PASSWORD=${mysql_password}"
     echo "REDIS_PASSWORD=${redis_password}"
-    echo "MP_SMTP_AUTH=supernote:$(openssl rand -hex 16)"
+    echo "MP_SMTP_AUTH=supernote@local:$(openssl rand -hex 16)"
   } >.dbenv
   echo "made supernote/.dbenv"
 fi
 
 if ! grep -q '^MP_SMTP_AUTH=' .dbenv; then
-  echo "MP_SMTP_AUTH=supernote:$(openssl rand -hex 16)" >>.dbenv
+  echo "MP_SMTP_AUTH=supernote@local:$(openssl rand -hex 16)" >>.dbenv
 fi
 
 mkdir -p \
