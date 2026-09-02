@@ -1,0 +1,6 @@
+*
+!Dockerfile.mail
+!sndata/
+!sndata/mailpit/
+!sndata/mailpit/cert/
+!sndata/mailpit/cert/mailpit.crt

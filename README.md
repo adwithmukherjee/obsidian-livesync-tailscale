@@ -1,12 +1,15 @@
 # obsidian livesync on tailscale
 
-my self hosted obsidian sync setup. couchdb only listens on localhost and
-tailscale serve makes it available inside my tailnet over https.
+my self hosted obsidian and supernote sync setup. couchdb only listens on
+localhost and tailscale serve makes it available inside my tailnet over https.
 
-no funnel, open ports, vault data, passwords, or tailscale state in this repo.
+the supernote endpoint uses funnel on port `8443` so the manta can reach it
+away from home. couchdb stays private. no vault data, passwords, or tailscale
+state in this repo.
 
 ```text
 obsidian -> tailscale serve -> 127.0.0.1:5984 -> couchdb docker volume
+manta -> tailscale funnel :8443 -> private cloud -> vault -> livesync
 ```
 
 ## setup
@@ -61,6 +64,61 @@ install the daily 3:15am job:
 
 docker desktop needs to be running and the user needs to be logged in. copies
 on a second disk are still a good idea.
+
+## supernote copy
+
+the private cloud stack lives in `supernote/`. it uses the current official
+images. on apple silicon, the two supernote images run through docker's amd64
+emulation.
+
+start the local service:
+
+```sh
+./scripts/bootstrap-supernote.sh
+./scripts/verify-supernote.sh
+```
+
+registration mail stays local. use these values in the email server form:
+
+```sh
+./scripts/show-supernote-mail-settings.sh
+```
+
+open `http://127.0.0.1:8025` to read codes.
+
+finish email setup and create the admin account before making it public. then:
+
+```sh
+./scripts/configure-supernote-funnel.sh
+```
+
+the public address is the tailscale dns name with port `8443`. no domain or
+router port forwarding is needed. the mac and docker desktop must be awake.
+
+the copy script moves handwritten notes out of private cloud storage. it only reads
+`Note/Classes` and `Note/Lab`, only copies `.note` files, and never deletes
+anything from the vault.
+
+set these in `.env`:
+
+```sh
+SUPERNOTE_NOTE_DIR=/path/to/supernote_data/account/Supernote/Note
+OBSIDIAN_VAULT_DIR=/Users/me/Documents/Obsidian/Notes
+SUPERNOTE_COPY_INTERVAL=300
+```
+
+test it, run it, then install the background job:
+
+```sh
+./scripts/sync-supernote.sh --check
+./scripts/sync-supernote.sh --dry-run
+./scripts/sync-supernote.sh
+./scripts/install-supernote-copy-launch-agent.sh
+```
+
+the supernote copy wins when the same `.note` file differs. writes are atomic.
+the background job runs every five minutes by default. livesync handles the
+copied files after that.
 
 ## useful commands
 

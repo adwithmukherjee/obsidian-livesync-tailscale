@@ -6,3 +6,7 @@ backups/
 *.key
 *.pem
 .DS_Store
+supernote/.dbenv
+supernote/sndata/
+supernote/supernote_data/
+supernote/supernotedb.sql

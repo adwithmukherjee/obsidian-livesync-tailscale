@@ -1,0 +1,9 @@
+FROM docker.io/supernote/supernote-service:26.06.04
+
+COPY sndata/mailpit/cert/mailpit.crt /tmp/mailpit.crt
+RUN keytool -importcert -noprompt \
+    -alias local-mailpit \
+    -file /tmp/mailpit.crt \
+    -keystore "${JAVA_HOME}/jre/lib/security/cacerts" \
+    -storepass changeit \
+  && rm /tmp/mailpit.crt
