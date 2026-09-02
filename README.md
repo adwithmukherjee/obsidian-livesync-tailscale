@@ -127,6 +127,11 @@ rendered to PDF first. existing remote filenames are left alone.
 docker compose -f supernote/compose.yaml --profile copy up -d --build supernote-upload
 ```
 
+the first upload run records a deletion baseline. after that, a file missing
+from private cloud for two checks is moved from the vault into
+`.trash/supernote`. this only applies inside `Classes` and `Lab`. folders and
+`.mark` sidecars are never deleted directly.
+
 ## useful commands
 
 ```sh

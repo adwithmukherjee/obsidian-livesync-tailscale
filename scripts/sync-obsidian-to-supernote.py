@@ -13,7 +13,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 class Cloud:
@@ -181,24 +181,137 @@ def markdown_pdf(path, vault):
         return Path(output.name).read_bytes()
 
 
+def remote_inventory(cloud, note_id):
+    files = {}
+    roots = {}
+    seen = set()
+
+    def walk(directory_id, prefix):
+        if directory_id in seen:
+            return
+        seen.add(directory_id)
+        for item in cloud.list_dir(directory_id):
+            name = item.get("fileName", "")
+            if not name or name in (".", "..") or "/" in name or "\\" in name:
+                raise RuntimeError(f"unsafe remote name: {name!r}")
+            path = prefix / name
+            if cloud.is_folder(item):
+                walk(item["id"], path)
+            elif not name.lower().endswith(".mark"):
+                files[str(path)] = {
+                    "id": item["id"],
+                    "md5": item.get("md5"),
+                }
+
+    for top in ("Classes", "Lab"):
+        roots[top] = cloud.ensure_dir(note_id, top)
+        walk(roots[top], PurePosixPath(top))
+    return files, roots
+
+
+def load_state(path):
+    if not path.exists():
+        return None
+    state = json.loads(path.read_text())
+    if state.get("version") != 1 or not isinstance(state.get("files"), dict):
+        raise RuntimeError("bad deletion state")
+    return state
+
+
+def save_state(path, files):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(f"{path.name}.tmp.{os.getpid()}")
+    temp.write_text(json.dumps({"version": 1, "files": files}, indent=2, sort_keys=True) + "\n")
+    os.replace(temp, path)
+
+
+def safe_local_path(vault, relative):
+    path = PurePosixPath(relative)
+    if path.is_absolute() or ".." in path.parts or not path.parts or path.parts[0] not in ("Classes", "Lab"):
+        raise RuntimeError(f"unsafe local path: {relative}")
+    return vault.joinpath(*path.parts)
+
+
+def infer_source(vault, remote_path):
+    remote = PurePosixPath(remote_path)
+    exact = safe_local_path(vault, remote_path)
+    if exact.exists():
+        return str(remote)
+    if remote.suffix.lower() == ".pdf":
+        markdown = exact.with_suffix(".md")
+        if markdown.exists():
+            return str(remote.with_suffix(".md"))
+    return None
+
+
+def trash_local(vault, relative):
+    source = safe_local_path(vault, relative)
+    if not source.exists():
+        return False
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    target = vault / ".trash" / "supernote" / stamp / PurePosixPath(relative)
+    counter = 1
+    while target.exists():
+        target = target.with_name(f"{target.stem}-{counter}{target.suffix}")
+        counter += 1
+    target.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(source, target)
+    print(f"delete: {relative} -> {target.relative_to(vault)}", flush=True)
+    return True
+
+
 def sync_once():
     vault = Path(os.environ.get("OBSIDIAN_VAULT_DIR", "/obsidian-vault"))
+    state_path = Path(os.environ.get("SUPERNOTE_STATE_PATH", "/state/remote-files.json"))
     cloud = Cloud()
     cloud.login()
     note_id = cloud.find_note_folder()
+    remote, roots = remote_inventory(cloud, note_id)
+    saved = load_state(state_path)
+    entries = saved["files"] if saved else {}
     uploaded = 0
     existing = 0
+    deleted = 0
+
+    if saved:
+        for path in list(entries):
+            entry = entries[path]
+            if path in remote:
+                entry.update(remote[path])
+                entry["missing"] = 0
+                if not entry.get("source"):
+                    entry["source"] = infer_source(vault, path)
+                continue
+            entry["missing"] = int(entry.get("missing", 0)) + 1
+            if entry["missing"] < 2:
+                continue
+            source = entry.get("source") or infer_source(vault, path)
+            if source and trash_local(vault, source):
+                deleted += 1
+            entries.pop(path)
+    else:
+        print(f"baseline: {len(remote)} remote files", flush=True)
+
+    local_sources = {}
 
     for top in ("Classes", "Lab"):
         local_root = vault / top
         if not local_root.is_dir():
             continue
-        top_id = cloud.ensure_dir(note_id, top)
+        top_id = roots[top]
         directory_cache = {Path(): top_id}
 
         files = sorted(list(local_root.rglob("*.pdf")) + list(local_root.rglob("*.md")))
         for source in files:
             relative = source.relative_to(local_root)
+            local_path = str(PurePosixPath(top, *relative.parts))
+            remote_path = str(PurePosixPath(top, *relative.with_suffix(".pdf").parts))
+            if remote_path in local_sources:
+                continue
+            local_sources[remote_path] = local_path
+            entry = entries.get(remote_path)
+            if entry and entry.get("missing", 0):
+                continue
             parent = relative.parent
             if parent not in directory_cache:
                 current_path = Path()
@@ -211,8 +324,7 @@ def sync_once():
 
             directory_id = directory_cache[parent]
             remote_name = relative.with_suffix(".pdf").name
-            children = cloud.list_dir(directory_id)
-            if any(item.get("fileName") == remote_name for item in children):
+            if remote_path in remote:
                 existing += 1
                 continue
 
@@ -221,7 +333,20 @@ def sync_once():
             print(f"upload: {top}/{relative} -> {remote_name}", flush=True)
             uploaded += 1
 
-    print(f"ok: {uploaded} uploaded, {existing} existing", flush=True)
+    remote, _ = remote_inventory(cloud, note_id)
+    next_entries = {}
+    for path, item in remote.items():
+        old = entries.get(path, {})
+        next_entries[path] = {
+            **item,
+            "missing": 0,
+            "source": old.get("source") or local_sources.get(path) or infer_source(vault, path),
+        }
+    for path, entry in entries.items():
+        if path not in remote and entry.get("missing", 0):
+            next_entries[path] = entry
+    save_state(state_path, next_entries)
+    print(f"ok: {uploaded} uploaded, {existing} existing, {deleted} deleted", flush=True)
 
 
 def main():

@@ -156,8 +156,10 @@ services:
     environment:
       SUPERNOTE_API_BASE: http://supernote-service:8080/api
       OBSIDIAN_VAULT_DIR: /obsidian-vault
+      SUPERNOTE_STATE_PATH: /state/remote-files.json
     volumes:
-      - ${OBSIDIAN_VAULT_DIR:?set OBSIDIAN_VAULT_DIR in supernote/.env}:/obsidian-vault:ro
+      - ${OBSIDIAN_VAULT_DIR:?set OBSIDIAN_VAULT_DIR in supernote/.env}:/obsidian-vault
+      - ./sndata/bridge:/state
       - ../scripts/sync-obsidian-to-supernote.py:/app/sync-obsidian-to-supernote.py:ro
       - ./markdown.css:/app/markdown.css:ro
     command:
