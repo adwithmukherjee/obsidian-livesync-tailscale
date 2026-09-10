@@ -65,7 +65,12 @@ copy_folder() {
   local folder="$1"
   local source_root="${SUPERNOTE_NOTE_DIR}/${folder}"
   local target_root="${OBSIDIAN_VAULT_DIR}/${folder}"
-  local source_file relative_file target_file
+  local source_dir source_file relative_dir relative_file target_file
+
+  while IFS= read -r -d '' source_dir; do
+    relative_dir="${source_dir#"${source_root}"}"
+    [ -z "${relative_dir}" ] || mkdir -p "${target_root}${relative_dir}"
+  done < <(find "${source_root}" -type d -print0)
 
   while IFS= read -r -d '' source_file; do
     relative_file="${source_file#"${source_root}/"}"

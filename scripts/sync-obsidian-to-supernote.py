@@ -314,17 +314,31 @@ def sync_once():
         if file_id in remote_by_id:
             raise RuntimeError(f"duplicate remote id: {file_id}")
         remote_by_id[file_id] = path
+    claimed_paths = set()
 
     if saved:
         for path in list(entries):
             entry = entries[path]
             old_id = str(entry.get("id", ""))
             new_path = remote_by_id.get(old_id)
+            if not new_path and path not in remote and entry.get("md5"):
+                matches = [
+                    candidate
+                    for candidate, item in remote.items()
+                    if candidate not in entries
+                    and candidate not in claimed_paths
+                    and item.get("md5") == entry["md5"]
+                    and PurePosixPath(candidate).suffix.lower()
+                    == PurePosixPath(path).suffix.lower()
+                ]
+                if len(matches) == 1:
+                    new_path = matches[0]
             if new_path and new_path != path:
                 source = entry.get("source") or infer_source(vault, path)
                 new_source = moved_source(source, path, new_path) if source else None
                 if source and move_local(vault, source, new_source):
                     renamed += 1
+                claimed_paths.add(new_path)
                 entries.pop(path)
                 entries[new_path] = {
                     **remote[new_path],

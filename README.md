@@ -134,7 +134,9 @@ from private cloud for one check is moved from the vault into
 
 renaming or moving a tracked file on the Manta moves the matching vault file.
 for rendered markdown, the `.md` source follows the renamed PDF. the Manta path
-wins.
+wins. if Private Cloud changes the file id during a move, the bridge falls back
+to an unambiguous content hash match. empty Manta folders are created locally,
+but LiveSync does not carry empty folders to other devices.
 
 ## useful commands
 
