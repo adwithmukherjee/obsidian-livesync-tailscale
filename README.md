@@ -120,7 +120,8 @@ the background job runs every five minutes by default. livesync handles the
 copied files after that.
 
 PDFs in vault `Classes` and `Lab` can go the other way. Markdown files are
-rendered to PDF first. existing remote filenames are left alone.
+rendered to PDF first. changed files replace the matching remote PDF. `.mark`
+sidecars are left alone, but annotations can be misaligned if pages change.
 
 ```sh
 ./scripts/configure-supernote-upload.sh your@email.com

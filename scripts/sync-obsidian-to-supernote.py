@@ -141,6 +141,21 @@ class Cloud:
         if not finish.get("success"):
             raise RuntimeError(f"upload finish failed for {name}: {finish.get('errorCode')}")
 
+    def replace(self, directory_id, item, name, data):
+        result = self.post("/file/delete", {
+            "idList": [str(item["id"])],
+            "directoryId": str(directory_id),
+        })
+        if not result.get("success"):
+            raise RuntimeError(f"delete failed for {name}: {result.get('errorCode')}")
+        for _ in range(20):
+            if not any(child.get("fileName") == name for child in self.list_dir(directory_id)):
+                break
+            time.sleep(0.25)
+        else:
+            raise RuntimeError(f"delete did not finish for {name}")
+        self.upload(directory_id, name, data)
+
     def upload_data(self, upload_url, name, data):
         match = re.search(r"/oss/upload\?.*", upload_url)
         if not match:
@@ -304,6 +319,7 @@ def sync_once():
     saved = load_state(state_path)
     entries = saved["files"] if saved else {}
     uploaded = 0
+    updated = 0
     existing = 0
     deleted = 0
     renamed = 0
@@ -340,17 +356,22 @@ def sync_once():
                     renamed += 1
                 claimed_paths.add(new_path)
                 entries.pop(path)
-                entries[new_path] = {
+                moved = {
                     **remote[new_path],
                     "missing": 0,
                     "source": new_source,
                 }
+                if entry.get("source_md5"):
+                    moved["source_md5"] = entry["source_md5"]
+                entries[new_path] = moved
                 continue
             if path in remote:
                 entry.update(remote[path])
                 entry["missing"] = 0
                 if not entry.get("source"):
                     entry["source"] = infer_source(vault, path)
+                continue
+            if entry.get("replacing"):
                 continue
             entry["missing"] = int(entry.get("missing", 0)) + 1
             if entry["missing"] < 1:
@@ -394,30 +415,65 @@ def sync_once():
 
             directory_id = directory_cache[parent]
             remote_name = relative.with_suffix(".pdf").name
-            if remote_path in remote:
+            is_markdown = source.suffix.lower() == ".md"
+            source_md5 = hashlib.md5(source.read_bytes()).hexdigest() if is_markdown else None
+            if (
+                is_markdown
+                and remote_path in remote
+                and entry
+                and entry.get("source_md5") == source_md5
+                and not entry.get("replacing")
+            ):
                 existing += 1
                 continue
 
-            data = markdown_pdf(source, vault) if source.suffix.lower() == ".md" else source.read_bytes()
-            cloud.upload(directory_id, remote_name, data)
-            print(f"upload: {top}/{relative} -> {remote_name}", flush=True)
-            uploaded += 1
+            data = markdown_pdf(source, vault) if is_markdown else source.read_bytes()
+            local_md5 = hashlib.md5(data).hexdigest()
+            if remote_path in remote and remote[remote_path].get("md5") == local_md5:
+                if remote_path in entries:
+                    entries[remote_path].pop("replacing", None)
+                    if source_md5:
+                        entries[remote_path]["source_md5"] = source_md5
+                existing += 1
+                continue
+
+            if remote_path in remote:
+                entry = entries.get(remote_path, {})
+                entry["replacing"] = True
+                entries[remote_path] = entry
+                save_state(state_path, entries)
+                cloud.replace(directory_id, remote[remote_path], remote_name, data)
+                entry.pop("replacing", None)
+                if source_md5:
+                    entry["source_md5"] = source_md5
+                print(f"update: {top}/{relative} -> {remote_name}", flush=True)
+                updated += 1
+            else:
+                cloud.upload(directory_id, remote_name, data)
+                entry = entries.setdefault(remote_path, {})
+                if source_md5:
+                    entry["source_md5"] = source_md5
+                print(f"upload: {top}/{relative} -> {remote_name}", flush=True)
+                uploaded += 1
 
     remote, _ = remote_inventory(cloud, note_id)
     next_entries = {}
     for path, item in remote.items():
         old = entries.get(path, {})
-        next_entries[path] = {
+        next_entry = {
             **item,
             "missing": 0,
             "source": old.get("source") or local_sources.get(path) or infer_source(vault, path),
         }
+        if old.get("source_md5"):
+            next_entry["source_md5"] = old["source_md5"]
+        next_entries[path] = next_entry
     for path, entry in entries.items():
-        if path not in remote and entry.get("missing", 0):
+        if path not in remote and (entry.get("missing", 0) or entry.get("replacing")):
             next_entries[path] = entry
     save_state(state_path, next_entries)
     print(
-        f"ok: {uploaded} uploaded, {existing} existing, "
+        f"ok: {uploaded} uploaded, {updated} updated, {existing} existing, "
         f"{renamed} renamed, {deleted} deleted",
         flush=True,
     )
