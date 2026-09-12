@@ -15,6 +15,8 @@ import urllib.request
 import uuid
 from pathlib import Path, PurePosixPath
 
+SYNC_ROOTS = ("20 Classes", "30 Lab")
+
 
 class Cloud:
     def __init__(self):
@@ -218,7 +220,7 @@ def remote_inventory(cloud, note_id):
                     "md5": item.get("md5"),
                 }
 
-    for top in ("Classes", "Lab"):
+    for top in SYNC_ROOTS:
         roots[top] = cloud.ensure_dir(note_id, top)
         walk(roots[top], PurePosixPath(top))
     return files, roots
@@ -242,7 +244,7 @@ def save_state(path, files):
 
 def safe_local_path(vault, relative):
     path = PurePosixPath(relative)
-    if path.is_absolute() or ".." in path.parts or not path.parts or path.parts[0] not in ("Classes", "Lab"):
+    if path.is_absolute() or ".." in path.parts or not path.parts or path.parts[0] not in SYNC_ROOTS:
         raise RuntimeError(f"unsafe local path: {relative}")
     return vault.joinpath(*path.parts)
 
@@ -385,7 +387,7 @@ def sync_once():
 
     local_sources = {}
 
-    for top in ("Classes", "Lab"):
+    for top in SYNC_ROOTS:
         local_root = vault / top
         if not local_root.is_dir():
             continue

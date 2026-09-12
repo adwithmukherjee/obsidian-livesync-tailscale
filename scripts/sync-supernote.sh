@@ -33,7 +33,9 @@ if [ ! -d "${OBSIDIAN_VAULT_DIR}" ]; then
   exit 1
 fi
 
-for folder in Classes Lab; do
+folders=("20 Classes" "30 Lab")
+
+for folder in "${folders[@]}"; do
   if [ ! -d "${SUPERNOTE_NOTE_DIR}/${folder}" ]; then
     echo "missing supernote folder: ${folder}" >&2
     exit 1
@@ -102,7 +104,8 @@ copy_folder() {
   done < <(find "${source_root}" -type f -iname '*.note' -print0)
 }
 
-copy_folder Classes
-copy_folder Lab
+for folder in "${folders[@]}"; do
+  copy_folder "${folder}"
+done
 
 echo "ok: ${copied} copied, ${unchanged} unchanged"

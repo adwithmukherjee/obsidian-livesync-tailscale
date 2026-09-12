@@ -98,8 +98,8 @@ the local proxy on `19073` removes a duplicate port from funnel's forwarded
 hostname before requests reach supernote.
 
 the docker copy job moves handwritten notes out of private cloud storage. it only
-reads `Note/Classes` and `Note/Lab`, only copies `.note` files, and never deletes
-anything from the vault.
+reads `Note/20 Classes` and `Note/30 Lab`, only copies `.note` files, and never
+deletes anything from the vault.
 
 set these in `supernote/.env`:
 
@@ -119,7 +119,7 @@ the supernote copy wins when the same `.note` file differs. writes are atomic.
 the background job runs every five minutes by default. livesync handles the
 copied files after that.
 
-PDFs in vault `Classes` and `Lab` can go the other way. Markdown files are
+PDFs in vault `20 Classes` and `30 Lab` can go the other way. Markdown files are
 rendered to PDF first. changed files replace the matching remote PDF. `.mark`
 sidecars are left alone, but annotations can be misaligned if pages change.
 
@@ -130,8 +130,8 @@ docker compose -f supernote/compose.yaml --profile copy up -d --build supernote-
 
 the first upload run records a deletion baseline. after that, a file missing
 from private cloud for one check is moved from the vault into
-`.trash/supernote`. this only applies inside `Classes` and `Lab`. folders and
-`.mark` sidecars are never deleted directly.
+`.trash/supernote`. this only applies inside `20 Classes` and `30 Lab`. folders
+and `.mark` sidecars are never deleted directly.
 
 renaming or moving a tracked file on the Manta moves the matching vault file.
 for rendered markdown, the `.md` source follows the renamed PDF. the Manta path
