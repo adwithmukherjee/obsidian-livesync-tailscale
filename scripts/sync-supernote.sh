@@ -78,6 +78,11 @@ copy_folder() {
     relative_file="${source_file#"${source_root}/"}"
     target_file="${target_root}/${relative_file}"
 
+    if [[ "${source_file}" == *.[Pp][Dd][Ff] ]] && [ -f "${target_file%.*}.md" ]; then
+      unchanged=$((unchanged + 1))
+      continue
+    fi
+
     if [ -f "${target_file}" ] && cmp -s "${source_file}" "${target_file}"; then
       unchanged=$((unchanged + 1))
       continue
@@ -101,7 +106,7 @@ copy_folder() {
     mv -f "${tmp_file}" "${target_file}"
     tmp_file=""
     copied=$((copied + 1))
-  done < <(find "${source_root}" -type f -iname '*.note' -print0)
+  done < <(find "${source_root}" -type f \( -iname '*.note' -o -iname '*.pdf' \) -print0)
 }
 
 for folder in "${folders[@]}"; do

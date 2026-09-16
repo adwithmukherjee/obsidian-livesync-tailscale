@@ -98,8 +98,9 @@ the local proxy on `19073` removes a duplicate port from funnel's forwarded
 hostname before requests reach supernote.
 
 the docker copy job moves handwritten notes out of private cloud storage. it only
-reads `Note/20 Classes` and `Note/30 Lab`, only copies `.note` files, and never
-deletes anything from the vault.
+reads `Note/20 Classes` and `Note/30 Lab`, copies `.note` and `.pdf` files, and
+never deletes anything from the vault. PDFs generated from an existing Markdown
+file are skipped.
 
 set these in `supernote/.env`:
 
@@ -115,9 +116,9 @@ start it:
 docker compose -f supernote/compose.yaml up -d obsidian-copy
 ```
 
-the supernote copy wins when the same `.note` file differs. writes are atomic.
-the background job runs every five minutes by default. livesync handles the
-copied files after that.
+the supernote copy wins when the same file differs. writes are atomic. the
+background job runs every five minutes by default. livesync handles the copied
+files after that.
 
 PDFs in vault `20 Classes` and `30 Lab` can go the other way. Markdown files are
 rendered to PDF first. changed files replace the matching remote PDF. `.mark`
